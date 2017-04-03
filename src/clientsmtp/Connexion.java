@@ -6,143 +6,116 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.InetAddress;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import javax.net.ssl.SSLSocket;
-import javax.net.ssl.SSLSocketFactory;
+import java.net.Socket;
+import javax.net.SocketFactory;
 
 public class Connexion {
     
-    private final SSLSocket ss;
+    private final Socket socket;
     private final BufferedReader in;
     private final BufferedWriter out;
-    private String statut = "AUTHENTIFICATION";
-    private String timestamp;
-
+    private String statut = "CONNECTED";
     
     public Connexion(String target, int port) throws IOException, Exception {
-        SSLSocketFactory SSF = (SSLSocketFactory) SSLSocketFactory.getDefault();
-        ss = (SSLSocket) SSF.createSocket(InetAddress.getByName(target), port);
         
-        String[] allCipherSuites = ss.getSupportedCipherSuites();
+        SocketFactory SF = (SocketFactory) SocketFactory.getDefault();
         
-        //On met les CipherSuites sans certificat dans un String[]
-        ArrayList<String> anonCipherSuites = new ArrayList<>();
-        for(String cipherSuites : allCipherSuites){
-            if(cipherSuites.contains("anon"))
-                anonCipherSuites.add(cipherSuites);
-        }
-        String[] cipherSuites = new String[anonCipherSuites.size()];
-        cipherSuites = anonCipherSuites.toArray(cipherSuites);
-        
-        ss.setEnabledCipherSuites(cipherSuites);
-        
-        in = new BufferedReader(new InputStreamReader(ss.getInputStream()));
-        out = new BufferedWriter(new OutputStreamWriter(ss.getOutputStream()));
+        socket = SF.createSocket(InetAddress.getByName(target), port);
+        in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
         
         String greeting = in.readLine();
         System.out.println(greeting);
-        Matcher timestampMatcher = Pattern.compile("(<.+>)").matcher(greeting);
-        if (timestampMatcher.find())
-            timestamp = timestampMatcher.group();
-        else
-            throw new Exception("Can't find timestamp");
+        
     }
 
-    public void apop(String userName, String key) throws Exception{
-        if(!statut.equals("AUTHENTIFICATION"))
+    public void ehlo(String Domain) throws Exception{ 
+        if(!statut.equals("CONNECTED"))
             throw new Exception("Connexion impossible");
         
-        
-        
-        out.write("APOP " + userName + " " + md5((timestamp + key).getBytes()) + "\r\n");
-        out.flush();
-        
-        String reponse = in.readLine();
-
-        if(!reponse.equals("+OK"))
-            throw new Exception(reponse);
-
-        statut = "TRANSACTION";
+        this.write("EHLO " + Domain);
        
-    }
-
-    public String retr(Integer id) throws Exception{
-        if(!statut.equals("TRANSACTION"))
-            throw new Exception("Commande impossible");
-
-        
-        String message = "";
-        
-        out.write("RETR "+id+"\r\n");
-        out.flush();
         String reponse = in.readLine();
 
-        if(!reponse.startsWith("+OK "))
-            throw new Exception(reponse); 
-
-         String tmp = "";
-         while (!(tmp = in.readLine()).equals("."))
-             message += tmp+"\r\n";
-
-        return message;
-    }
-
-    public int[] stat() throws Exception{
-        if(!statut.equals("TRANSACTION"))
-            throw new Exception("Commande impossible");
-
-        
-        String[] tab;
-        
-        out.write("STAT\r\n");
-        out.flush();
-        String reponse = in.readLine();
-
-        tab = reponse.split(" ");
-
-        if(!reponse.startsWith("+OK "))
+        if(!reponse.equals("250 OK"))
             throw new Exception(reponse);
         
-        return new int[]{Integer.parseInt(tab[1]),Integer.parseInt(tab[2])};
+        statut = "WAIT_EHLO";
+
+    }
+    
+    public void mail() throws Exception{ 
+        String adresse = "";
+        this.write("MAIL FROM:<" + adresse+">");
+        
+        String reponse = in.readLine();
+
+        if (!reponse.equals("250 OK"))
+            throw new Exception("Erreur serveur");
+        
+        statut = "WAIT_RCPT";
+    }
+    
+    public void rcpt(String[] receiver) throws Exception{ 
+        for (String adresse : receiver) {
+            this.write("RCPT TO:<"+adresse+">");
+            
+            String reponse = in.readLine();
+
+            if (!reponse.equals("250 OK"))
+                System.out.println("No such user : "+adresse);
+        }
+        
+        statut = "WAIT_DATA";
+    }
+
+    public void rset() throws Exception{
+        this.write("RSET");
+        
+        String reponse = in.readLine();
+
+        if (!reponse.equals("250 OK"))
+            throw new Exception("Erreur serveur");
+    }
+
+    public void data(String message) throws Exception{
+        this.write("DATA");
+        
+        String reponse = in.readLine();
+
+        if (!reponse.equals("250 OK"))
+            throw new Exception("Erreur serveur");
+        else
+            this.write(message + ".");
+        
+        statut = "CONNECTED";
     }
 
     public void noop() throws Exception {
-        if (!statut.equals("TRANSACTION"))
-            throw new Exception("Commande impossible");
-
-        out.write("NOOP\r\n");
-        out.flush();
+        this.write("NOOP");
+        
         String reponse = in.readLine();
 
-        if (!reponse.equals("+OK"))
+        if (!reponse.equals("250 OK"))
             throw new Exception("Erreur serveur");
 
     }
 
     public void quit() throws Exception{
-        out.write("QUIT\r\n");
-        out.flush();
+        this.write("QUIT");
+        
         String reponse = in.readLine();
 
-        if (!reponse.startsWith("+OK"))
+        if (!reponse.startsWith("250 OK"))
             throw new Exception("Erreur serveur");
 
         statut = "CLOSED";
-        ss.close();
+        socket.close();
     }
     
-    private static String md5(byte[] raw) throws NoSuchAlgorithmException{
-        
-        byte[] digest = MessageDigest.getInstance("MD5").digest(raw);
-        StringBuilder builder = new StringBuilder();
-        for (byte b: digest){
-            builder.append(String.format("%02x", b));
-        }
-        return builder.toString();
+    public void write(String str) throws IOException {
+        out.write(str+"\r\n", 0, str.length());
+        out.flush();
     }
-
+    
 }

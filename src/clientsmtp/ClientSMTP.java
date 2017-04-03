@@ -37,13 +37,21 @@ public class ClientSMTP {
     }
     
     public static Message readMessage(Scanner in) {
-        String target;
+        ArrayList<String> targets = new ArrayList<>();
         String content = "";
         String line;
         boolean continu = true;
-        println("Quelle est la destination du message ?");
-        target = in.next();
+        do {
+            println("Ajouter un destinataire (entrer pour passer à la suite)");
+            line = in.next();
+            if (line.isEmpty())
+                continu = false;
+            else
+                targets.add(line);
+        }while (continu);
+        
         println("Entrez votre message (terminer par un .)");
+        continu = true;
         do {
             line = in.next();
             if (line.equals("."))
@@ -52,7 +60,7 @@ public class ClientSMTP {
                 content += "\r\n" + line;
         }while (continu || content.length() < 2);
         
-        return new Message(target, content.substring(2));
+        return new Message("utilisateur", targets, content.substring(2));
     }
     
     

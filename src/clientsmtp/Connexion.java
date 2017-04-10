@@ -1,4 +1,4 @@
-package ClientSMTP;
+package clientsmtp;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;

@@ -8,6 +8,7 @@ import java.io.OutputStreamWriter;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -31,6 +32,12 @@ public class Connexion {
     private int statut = CONNECTED;
     private List<Exception> errors;
     
+    private Iterator<Message> messagesIterator;
+    private Message currentMessage;
+    private Iterator<String> targetsIterator;
+    private String currentTarget;
+    private int validTargets = 0;
+    
     public Connexion(String target, int port) throws IOException, Exception {
         
         SocketFactory SF = (SocketFactory) SocketFactory.getDefault();
@@ -51,6 +58,7 @@ public class Connexion {
     public void send_messages(List<Message> messages){
         String line;
 
+        messagesIterator = messages.iterator();
 
         errors.clear();
 
@@ -81,8 +89,9 @@ public class Connexion {
                 break;
             case CONNECTED:
                 switch (messageStatut){
-                    case 250:
-                        // @todo
+                    case 220:
+                        write("EHLO");
+                        statut = WAIT_EHLO;
                         break;
                     default:
                         errors.add(new Exception(String.format("Message serveur : \"%s\"", line)));
@@ -92,7 +101,12 @@ public class Connexion {
             case WAIT_EHLO:
                 switch (messageStatut){
                     case 250:
-                        // @todo
+                        currentMessage = messagesIterator.next();
+                        targetsIterator = currentMessage.getTargets().iterator();
+                        currentTarget = null;
+                        write("MAIL FROM " + currentMessage.getSource());
+                        
+                        statut = WAIT_FROM;
                         break;
                     default:
                         errors.add(new Exception(String.format("Message serveur : \"%s\"", line)));
@@ -102,7 +116,11 @@ public class Connexion {
             case WAIT_FROM:
                 switch (messageStatut){
                     case 250:
-                        // @todo
+                        currentTarget = targetsIterator.next();
+                        write("RCTP TO " + currentTarget);
+                        
+                        validTargets = 0;
+                        statut = WAIT_RCPT;
                         break;
                     default:
                         errors.add(new Exception(String.format("Message serveur : \"%s\"", line)));
@@ -122,8 +140,30 @@ public class Connexion {
             case WAIT_RCPT:
                 switch (messageStatut){
                     case 250:
-                        // @todo
+                        validTargets++;
+                        if (targetsIterator.hasNext()){
+                            currentTarget = targetsIterator.next();
+                            write("RCPT TO " + currentTarget);
+                        }else{
+                            write("DATA");
+                            
+                            statut = WAIT_DATA;
+                        }
                         break;
+                    case 550:
+                        if (targetsIterator.hasNext()){
+                            currentTarget = targetsIterator.next();
+                            write("RCPT TO " + currentTarget);
+                        }else if (validTargets > 0){
+                            write("DATA");
+                            
+                            statut = WAIT_DATA;
+                        }else{
+                            errors.add(new Exception("Aucun destinataire valide, abandon du message"));
+                            write("RSET");
+                            
+                            statut = WAIT_RSET;
+                        }
                     default:
                         errors.add(new Exception(String.format("Message serveur : \"%s\"", line)));
                         // @todo

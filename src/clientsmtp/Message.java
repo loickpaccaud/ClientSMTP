@@ -1,24 +1,25 @@
 package clientsmtp;
 
 import java.util.ArrayList;
+import java.util.List;
 
 
 public class Message {
     
-    private String[] targets;
+    private ArrayList<String> targets;
     
     private String content;
     
     private String source;
     
     public Message(String source, ArrayList<String> targets, String content) {
-        this.targets = (String[]) targets.toArray();
+        this.targets = (ArrayList<String>) targets.clone();
         this.content = content;
         this.source = source;
     }
     
-    public String[] getTargets() {
-        return targets.clone();
+    public List<String> getTargets() {
+        return (List<String>) targets.clone();
     }
     
     public String getSource() {

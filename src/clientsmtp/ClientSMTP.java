@@ -2,6 +2,7 @@ package clientsmtp;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.Scanner;
 
 public class ClientSMTP {
@@ -34,12 +35,12 @@ public class ClientSMTP {
         }
         print("Termine");
         co.sendMessages(messages);
-        Exception[] errors = co.getErrors();
-        if(errors.length == 0){
+        Iterator<Exception> errors = co.getErrors();
+        if(!errors.hasNext()){
             println("Aucune erreur");
         }else{
-            for (Exception error: errors)
-                println(error.getMessage());
+            while (errors.hasNext())
+                println(errors.next().getMessage());
         }
     }
     
@@ -49,7 +50,7 @@ public class ClientSMTP {
         String line;
         boolean continu = true;
         do {
-            println("Ajouter un destinataire (entrer un point pour passer à la suite)");
+            println("Ajouter un destinataire (entrer un . pour passer à la suite)");
             line = in.next();
             if (line.equals("."))
                 continu = false;
@@ -67,7 +68,7 @@ public class ClientSMTP {
                 content += "\r\n" + line;
         }while (continu || content.length() < 2);
         
-        return new Message("utilisateur", targets, content.substring(2));
+        return new Message("utilisateur@domaine.fr", targets, content.substring(2));
     }
     
     

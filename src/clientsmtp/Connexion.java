@@ -52,8 +52,8 @@ public class Connexion {
         System.out.println(greeting);
     }
 
-    public Exception[] getErrors(){
-        return (Exception[]) errors.toArray();
+    public Iterator<Exception> getErrors(){
+        return errors.iterator();
     }
 
     public void sendMessages(List<Message> messages){
@@ -65,6 +65,7 @@ public class Connexion {
 
         try {
             write("EHLO");
+            statut = WAIT_EHLO;
             while (statut != CLOSED){
                 line = in.readLine();
                 handleMessage(line);
@@ -77,15 +78,16 @@ public class Connexion {
 
     private void handleMessage(String line) throws Exception {
         int messageStatut = getStatut(line);
+        ClientSMTP.println(messageStatut);
         switch (statut){
             case CLOSED:
                 switch (messageStatut){
                     case 250:
-                        // @todo
+                        statut = CLOSED;
                         break;
                     default:
-                        errors.add(new Exception(String.format("Message serveur : \"%s\"", line)));
-                        // @todo
+                        errors.add(new Exception(String.format("Message serveur : \"%s\" (%s)", line, "CLOSED")));
+                        statut = CLOSED;
                 }
                 break;
             case CONNECTED:
@@ -95,8 +97,8 @@ public class Connexion {
                         statut = WAIT_EHLO;
                         break;
                     default:
-                        errors.add(new Exception(String.format("Message serveur : \"%s\"", line)));
-                        // @todo
+                        errors.add(new Exception(String.format("Message serveur : \"%s\" (%s)", line, "CONNECTED")));
+                        statut = CLOSED;
                 }
                 break;
             case WAIT_EHLO:
@@ -105,27 +107,27 @@ public class Connexion {
                         currentMessage = messagesIterator.next();
                         targetsIterator = currentMessage.getTargets().iterator();
                         currentTarget = null;
-                        write("MAIL FROM " + currentMessage.getSource());
+                        write("MAIL FROM:<" + currentMessage.getSource() + ">");
                         
                         statut = WAIT_FROM;
                         break;
                     default:
-                        errors.add(new Exception(String.format("Message serveur : \"%s\"", line)));
-                        // @todo
+                        errors.add(new Exception(String.format("Message serveur : \"%s\" (%s)", line, "WAIT_EHLO")));
+                        statut = CLOSED;
                 }
                 break;
             case WAIT_FROM:
                 switch (messageStatut){
                     case 250:
                         currentTarget = targetsIterator.next();
-                        write("RCTP TO " + currentTarget);
+                        write("RCPT TO:<" + currentTarget+">");
                         
                         validTargets = 0;
                         statut = WAIT_RCPT;
                         break;
                     default:
-                        errors.add(new Exception(String.format("Message serveur : \"%s\"", line)));
-                        // @todo
+                        errors.add(new Exception(String.format("Message serveur : \"%s\" (%s)", line, "WAIT_FROM")));
+                        statut = CLOSED;
                 }
                 break;
             case WAIT_RSET:
@@ -145,8 +147,8 @@ public class Connexion {
                         }
                         break;
                     default:
-                        errors.add(new Exception(String.format("Message serveur : \"%s\"", line)));
-                        // @todo
+                        errors.add(new Exception(String.format("Message serveur : \"%s\" (%s)", line, "WAIT_RSET")));
+                        statut = CLOSED;
                 }
                 break;
             case WAIT_RCPT:
@@ -178,8 +180,8 @@ public class Connexion {
                         }
                         break;
                     default:
-                        errors.add(new Exception(String.format("Message serveur : \"%s\"", line)));
-                        // @todo
+                        errors.add(new Exception(String.format("Message serveur : \"%s\" (%s)", line, "WAIT_RCPT")));
+                        statut = CLOSED;
                 }
                 break;
             case WAIT_DATA:
@@ -193,8 +195,8 @@ public class Connexion {
                         statut = WAIT_DATA_VALID;
                         break;
                     default:
-                        errors.add(new Exception(String.format("Message serveur : \"%s\"", line)));
-                        // @todo
+                        errors.add(new Exception(String.format("Message serveur : \"%s\" (%s)", line, "WAIT_DATA")));
+                        statut = CLOSED;
                 }
                 break;
             case WAIT_DATA_VALID:
@@ -214,12 +216,12 @@ public class Connexion {
                         }
                         break;
                     default:
-                        errors.add(new Exception(String.format("Message serveur : \"%s\"", line)));
-                        // @todo
+                        errors.add(new Exception(String.format("Message serveur : \"%s\" (%s)", line, "WAIT_DATA_VALID")));
+                        statut = CLOSED;
                 }
                 break;
             default:
-                throw new Exception(String.format("État incohérent : \"%s\"", statut));
+                throw new Exception(String.format("État incohérent : \"%s\" (%s)", statut));
         }
     }
 
@@ -318,11 +320,17 @@ public class Connexion {
     }
 
     private int getStatut(String line) {
-        Matcher m = Pattern.compile("^\\d+").matcher(line);
+        /*Matcher m = Pattern.compile("^\\d+").matcher(line);
         if (m.matches()){
             return Integer.parseInt(m.group());
         }
-        return -1;
+        return -1;*/
+        String[] mes = line.split(" ");
+        try{
+            return Integer.parseInt(mes[0]);
+        }catch(Exception e){
+            return -1;
+        }
     }
 
     private boolean isOk(String str){

@@ -130,7 +130,18 @@ public class Connexion {
             case WAIT_RSET:
                 switch (messageStatut){
                     case 250:
-                        // @todo
+                        if (messagesIterator.hasNext()){
+                            currentMessage = messagesIterator.next();
+                            targetsIterator = currentMessage.getTargets().iterator();
+                            currentTarget = null;
+                            write("MAIL FROM:<" + currentMessage.getSource() + ">");
+                            
+                            statut = WAIT_FROM;
+                        }else{
+                            write("QUIT");
+                            
+                            statut = CLOSED;
+                        }
                         break;
                     default:
                         errors.add(new Exception(String.format("Message serveur : \"%s\"", line)));
@@ -143,7 +154,7 @@ public class Connexion {
                         validTargets++;
                         if (targetsIterator.hasNext()){
                             currentTarget = targetsIterator.next();
-                            write("RCPT TO " + currentTarget);
+                            write("RCPT TO:<" + currentTarget + ">");
                         }else{
                             write("DATA");
                             
@@ -153,7 +164,7 @@ public class Connexion {
                     case 550:
                         if (targetsIterator.hasNext()){
                             currentTarget = targetsIterator.next();
-                            write("RCPT TO " + currentTarget);
+                            write("RCPT TO:<" + currentTarget + ">");
                         }else if (validTargets > 0){
                             write("DATA");
                             
@@ -164,6 +175,7 @@ public class Connexion {
                             
                             statut = WAIT_RSET;
                         }
+                        break;
                     default:
                         errors.add(new Exception(String.format("Message serveur : \"%s\"", line)));
                         // @todo
@@ -171,8 +183,13 @@ public class Connexion {
                 break;
             case WAIT_DATA:
                 switch (messageStatut){
-                    case 250:
-                        // @todo
+                    case 254:
+                        String[] content = currentMessage.getContent().split("\n");
+                        for (String messageLine : content)
+                            write(messageLine);
+                        write(".\r\n");
+                        
+                        statut = WAIT_DATA_VALID;
                         break;
                     default:
                         errors.add(new Exception(String.format("Message serveur : \"%s\"", line)));
@@ -182,7 +199,18 @@ public class Connexion {
             case WAIT_DATA_VALID:
                 switch (messageStatut){
                     case 250:
-                        // @todo
+                        if (messagesIterator.hasNext()){
+                            currentMessage = messagesIterator.next();
+                            targetsIterator = currentMessage.getTargets().iterator();
+                            currentTarget = null;
+                            write("MAIL FROM:<" + currentMessage.getSource() + ">");
+                            
+                            statut = WAIT_FROM;
+                        }else{
+                            write("QUIT");
+                            
+                            statut = CLOSED;
+                        }
                         break;
                     default:
                         errors.add(new Exception(String.format("Message serveur : \"%s\"", line)));

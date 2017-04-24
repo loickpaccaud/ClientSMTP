@@ -42,7 +42,8 @@ public class Connexion {
         
         SocketFactory SF = (SocketFactory) SocketFactory.getDefault();
         
-        socket = SF.createSocket(InetAddress.getByName(target), port);
+        socket = new Socket(InetAddress.getByName(target), port);
+        // socket = SF.createSocket(InetAddress.getByName(target), port);
         in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
         errors = new ArrayList<>();
@@ -55,7 +56,7 @@ public class Connexion {
         return (Exception[]) errors.toArray();
     }
 
-    public void send_messages(List<Message> messages){
+    public void sendMessages(List<Message> messages){
         String line;
 
         messagesIterator = messages.iterator();

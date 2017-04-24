@@ -9,7 +9,7 @@ public class ClientSMTP {
     public static void main(String[] args) throws IOException, Exception {
         
         
-        Connexion co = new Connexion("127.0.0.1", 1100);
+        Connexion co = new Connexion("134.214.119.208", 25);
         Scanner in = new Scanner(System.in);
         
         String line;
@@ -33,7 +33,14 @@ public class ClientSMTP {
             }
         }
         print("Termine");
-        // co.sendMessages(messages);
+        co.sendMessages(messages);
+        Exception[] errors = co.getErrors();
+        if(errors.length == 0){
+            println("Aucune erreur");
+        }else{
+            for (Exception error: errors)
+                println(error.getMessage());
+        }
     }
     
     public static Message readMessage(Scanner in) {
@@ -42,9 +49,9 @@ public class ClientSMTP {
         String line;
         boolean continu = true;
         do {
-            println("Ajouter un destinataire (entrer pour passer à la suite)");
+            println("Ajouter un destinataire (entrer un point pour passer à la suite)");
             line = in.next();
-            if (line.isEmpty())
+            if (line.equals("."))
                 continu = false;
             else
                 targets.add(line);

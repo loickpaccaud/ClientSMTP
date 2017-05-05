@@ -10,7 +10,6 @@ public class ClientSMTP {
     public static void main(String[] args) throws IOException, Exception {
         
         
-        Connexion co = new Connexion("134.214.119.208", 25);
         Scanner in = new Scanner(System.in);
         
         String line;
@@ -21,7 +20,7 @@ public class ClientSMTP {
         while (working){
             println("Ajouter un message ? (Y/N)");
             line = in.next();
-            switch (line) {
+            switch (line.toUpperCase()) {
                 case "Y":
                     messages.add(readMessage(in));
                     break;
@@ -33,7 +32,12 @@ public class ClientSMTP {
                     break;
             }
         }
-        print("Termine");
+        print("Envoi des messages");
+        
+        
+    //    Connexion co = new Connexion("134.214.119.139", 25); // Lilian
+        Connexion co = new Connexion("134.214.116.171", 25); // Robin
+    //    Connexion co = new Connexion("134.214.117.134", 25); // Loïck
         co.sendMessages(messages);
         Iterator<Exception> errors = co.getErrors();
         if(!errors.hasNext()){
@@ -61,7 +65,7 @@ public class ClientSMTP {
         println("Entrez votre message (terminer par un .)");
         continu = true;
         do {
-            line = in.next();
+            line = in.nextLine();
             if (line.equals("."))
                 continu = false;
             else

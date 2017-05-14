@@ -10,8 +10,6 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import javax.net.SocketFactory;
 
 public class Connexion {
@@ -50,7 +48,6 @@ public class Connexion {
         errors = new ArrayList<>();
         
         String greeting = in.readLine();
-        System.out.println(greeting);
     }
 
     public Iterator<Exception> getErrors(){
@@ -68,9 +65,7 @@ public class Connexion {
             write("EHLO");
             statut = WAIT_EHLO;
             while (statut != CLOSED){
-                System.out.println("Waiting");
                 line = in.readLine();
-                System.out.println(line);
                 handleMessage(line);
             }
         }catch(Exception e){
@@ -81,7 +76,6 @@ public class Connexion {
 
     private void handleMessage(String line) throws Exception {
         int messageStatut = getStatut(line);
-        ClientSMTP.println(messageStatut);
         switch (statut){
             case CLOSED:
                 switch (messageStatut){
@@ -200,9 +194,7 @@ public class Connexion {
                 switch (messageStatut){
                     case 354:
                         String[] content = currentMessage.getContent().split("\r\n");
-                        System.out.println(currentMessage.getContent());
                         for (String messageLine : content){
-                            System.out.println(" send data : " + messageLine);
                             write(messageLine);
                         }
                         write(".");
